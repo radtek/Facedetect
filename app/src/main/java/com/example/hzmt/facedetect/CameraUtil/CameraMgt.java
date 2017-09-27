@@ -229,6 +229,7 @@ public class CameraMgt {
         return retSize;
     }
 
+
     /**
      * 设置 摄像头的角度
      *
@@ -246,18 +247,10 @@ public class CameraMgt {
         //获取摄像头当前的角度
         int degrees = 0;
         switch (rotation) {
-            case Surface.ROTATION_0:
-                degrees = 0;
-                break;
-            case Surface.ROTATION_90:
-                degrees = 90;
-                break;
-            case Surface.ROTATION_180:
-                degrees = 180;
-                break;
-            case Surface.ROTATION_270:
-                degrees = 270;
-                break;
+            case Surface.ROTATION_0: degrees = 0;break;
+            case Surface.ROTATION_90: degrees = 90;break;
+            case Surface.ROTATION_180: degrees = 180;break;
+            case Surface.ROTATION_270: degrees = 270;break;
         }
 
         int result;
@@ -270,7 +263,6 @@ public class CameraMgt {
             result = (info.orientation - degrees + 360) % 360;
         }
         camera.setDisplayOrientation(result);
-
     }
 
     private SurfaceHolder.Callback mSurfaceCallback = new SurfaceHolder.Callback() {
@@ -333,10 +325,11 @@ public class CameraMgt {
         options.inSampleSize = samplesize; //
         Bitmap bm = BitmapFactory.decodeByteArray(data, 0, data.length,options);
         Matrix matrix = new Matrix();
-        if (cameraInfo.facing == Camera.CameraInfo.CAMERA_FACING_BACK)
-            matrix.postRotate(90);
-        else
-            matrix.postRotate(270);
+        //if (cameraInfo.facing == Camera.CameraInfo.CAMERA_FACING_BACK)
+        //    matrix.postRotate(90);
+        //else
+        //    matrix.postRotate(270);
+        matrix.postRotate(cameraInfo.orientation);
         Bitmap nbmp = Bitmap.createBitmap(bm,
                 0, 0, bm.getWidth(),  bm.getHeight(), matrix, true);
 

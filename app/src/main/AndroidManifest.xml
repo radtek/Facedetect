@@ -7,7 +7,9 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
-
+    <uses-permission android:name="android.permission.BLUETOOTH" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-feature android:name="android.hardware.camera" />
 
     <application
@@ -20,12 +22,12 @@
         android:theme="@style/Theme.AppCompat.Light.NoActionBar">
         <activity
             android:name=".MainActivity"
-            android:screenOrientation = "portrait">
+            android:screenOrientation = "landscape">
         </activity>
 
         <activity
             android:name=".CameraUtil.CameraActivity"
-            android:screenOrientation = "portrait">
+            android:screenOrientation = "landscape">
         <intent-filter>
             <action android:name="android.intent.action.MAIN" />
 
@@ -35,7 +37,7 @@
 
         <activity
             android:name=".SubActivity"
-            android:screenOrientation = "portrait">
+            android:screenOrientation = "landscape">
         </activity>
 
     </application>

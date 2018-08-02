@@ -1,5 +1,6 @@
 package com.example.hzmt.facedetect.CameraUtil;
 
+import android.content.Context;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.graphics.Matrix;
@@ -8,8 +9,8 @@ import android.view.SurfaceView;
 import android.view.SurfaceHolder;
 import android.view.Surface;
 import android.view.View;
+import android.view.ViewGroup;
 import android.view.MotionEvent;
-
 
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
@@ -20,6 +21,7 @@ import android.content.Intent;
 import android.hardware.Camera;
 
 import android.util.Log;
+import android.widget.FrameLayout;
 import android.widget.Toast;
 
 import com.example.hzmt.facedetect.MainActivity;
@@ -27,14 +29,15 @@ import com.example.hzmt.facedetect.MainActivity;
 import java.io.IOException;
 import java.util.List;
 
+
 /**
  * Created by xun on 2017/8/23.
  */
 
 public class CameraMgt {
-    private int mPreviewId;
     private Activity mActivity;
     private SurfaceView mSurfaceView;
+    private SurfaceDraw mFaceRect;
 
     private Camera mCamera = null;
     private int[] mCamList = {-1, -1};
@@ -44,11 +47,12 @@ public class CameraMgt {
     private Camera.PreviewCallback mCameraFrameWork = null;
     private Camera.PictureCallback mCameraTakePictureJpegCB = null;
 
-    public CameraMgt(Activity activity, int previewId) {
+    public CameraMgt(Activity activity, SurfaceView preview, SurfaceDraw facerect) {
         mActivity = activity;
-        mPreviewId = previewId;
 
-        mSurfaceView = (SurfaceView) mActivity.findViewById(mPreviewId);
+        mSurfaceView = preview;
+        mFaceRect = facerect;
+
         //mSurfaceView.setVisibility(View.VISIBLE);
         mSurfaceView.setOnTouchListener(mSurfaceViewTouch);
         // 获得 SurfaceHolder 对象
@@ -76,7 +80,7 @@ public class CameraMgt {
         mCameraTakePictureJpegCB = cb;
     }
 
-    public void openCamera() {
+    public void openCamera(boolean bStartCamera) {
         String[] items = new String[]{"后置摄像头", "前置摄像头"};
         Camera.CameraInfo cameraInfo = new Camera.CameraInfo();
         int cameraCount = Camera.getNumberOfCameras(); // get cameras number
@@ -128,7 +132,8 @@ public class CameraMgt {
         {
             mCamIdx = mCamList[1];
             isCamSelected = true;
-            //startCamera();
+            if(bStartCamera)
+                startCamera();
         }
     }
 
@@ -162,6 +167,7 @@ public class CameraMgt {
             Camera.Size previewSize = getSuitablePreviewSize(parameters);
             if(null != previewSize){
                 parameters.setPreviewSize(previewSize.width, previewSize.height);
+                // parameters.setPreviewSize(1280, 960); //test
             }
 
             List<Camera.Size> picSizes = parameters.getSupportedPictureSizes();
@@ -182,7 +188,9 @@ public class CameraMgt {
             //if (sceneModes.contains(Camera.Parameters.SCENE_MODE_PORTRAIT)) {
             //    parameters.setSceneMode(Camera.Parameters.SCENE_MODE_PORTRAIT);
             //}
+
             mCamera.setParameters(parameters);
+            setSuitableSureface(); // 设置绘图窗口尺寸
             mCamera.setPreviewCallback(mCameraFrameWork);
             mCamera.startPreview();//开始预览
             isPreview = true;//设置是否预览参数为真
@@ -227,6 +235,31 @@ public class CameraMgt {
 
         //Toast.makeText(mActivity, pres, Toast.LENGTH_LONG).show();
         return retSize;
+    }
+
+    private void setSuitableSureface(){
+        Camera.Size previewSize;
+        try {
+            previewSize = mCamera.getParameters().getPreviewSize();
+        }
+        catch(Exception e){
+            return;
+        }
+
+        if(0 != previewSize.height){
+            //Point point = new Point();
+            // mActivity.getWindowManager().getDefaultDisplay().getRealSize(point); // 全屏分辨率
+
+            // 设置预览窗口大小
+            ViewGroup.LayoutParams cameraLP = mSurfaceView.getLayoutParams();
+            cameraLP.height = CameraActivityData.CameraActivity_height;
+            cameraLP.width = cameraLP.height * previewSize.width / previewSize.height;
+
+            // 设置人脸框绘图窗口大小，与预览窗口等大
+            ViewGroup.LayoutParams facerectL = mFaceRect.getLayoutParams();
+            facerectL.height = cameraLP.height;
+            facerectL.width = cameraLP.width;
+        }
     }
 
 
@@ -311,6 +344,9 @@ public class CameraMgt {
                         intent.setClass(mActivity, MainActivity.class);
                         mActivity.startActivity(intent);
                     }
+                    else if(CameraActivityData.RequestType == CameraActivityData.REQ_TYPE_IDCARDFDV) {
+                        //mCamera.takePicture(null, null, mCameraTakePictureJpegCB);
+                    }
                 }
             }
             return false;
@@ -329,7 +365,7 @@ public class CameraMgt {
         //    matrix.postRotate(90);
         //else
         //    matrix.postRotate(270);
-        matrix.postRotate(cameraInfo.orientation);
+        matrix.postRotate((cameraInfo.orientation + CameraActivityData.DeviceOrientation) % 360);
         Bitmap nbmp = Bitmap.createBitmap(bm,
                 0, 0, bm.getWidth(),  bm.getHeight(), matrix, true);
 

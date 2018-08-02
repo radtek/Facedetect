@@ -8,7 +8,9 @@ import android.widget.ImageView;
 import android.content.Intent;
 
 import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 
+import com.example.hzmt.facedetect.CameraUtil.CameraActivityData;
 import com.example.hzmt.facedetect.CameraUtil.CameraMgt;
 
 public class SubActivity extends AppCompatActivity {
@@ -29,11 +31,18 @@ public class SubActivity extends AppCompatActivity {
         if(intent!=null)
         {
             //byte[] data = intent.getByteArrayExtra("facedata");
-            byte[] data = MyApplication.PhotoImageData;
-            int cameraid = intent.getIntExtra("cameraid", -1);
-            if(cameraid >= 0){
-                Bitmap bm = CameraMgt.getBitmapFromBytes(data, cameraid, 1);
-                mFaceView.setImageBitmap(bm);
+            int reqtype = intent.getIntExtra("RequestType", -1);
+            if(reqtype == CameraActivityData.REQ_TYPE_IDCARDFDV){
+                byte[] data = MyApplication.PhotoImageData;
+                Bitmap bmp = BitmapFactory.decodeByteArray(data, 0, data.length);
+                mFaceView.setImageBitmap(bmp);
+            } else {
+                byte[] data = MyApplication.PhotoImageData;
+                int cameraid = intent.getIntExtra("cameraid", -1);
+                if (cameraid >= 0) {
+                    Bitmap bm = CameraMgt.getBitmapFromBytes(data, cameraid, 1);
+                    mFaceView.setImageBitmap(bm);
+                }
             }
 
             MyApplication.PhotoImageData = null;

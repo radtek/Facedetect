@@ -1,13 +1,21 @@
 package com.example.hzmt.facedetect.CameraUtil;
 
 import android.Manifest;
+import android.app.Activity;
+import android.content.Context;
 import android.content.pm.PackageManager;
 import android.graphics.ImageFormat;
+import android.graphics.Point;
+import android.graphics.Bitmap;
+import android.graphics.Color;
+import android.os.Handler;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 
+import android.view.SurfaceView;
+import android.view.ViewGroup;
 import android.widget.ImageView;
 import android.widget.Toast;
 import android.view.View;
@@ -22,6 +30,10 @@ import android.location.LocationProvider;
 import android.location.LocationListener;
 import android.provider.Settings;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.Arrays;
 import java.util.List;
 import java.util.ArrayList;
@@ -37,9 +49,12 @@ public class CameraActivity extends AppCompatActivity {
     private static final int TOAST_OFFSET_PERMISSION_RATIONALE = 100;
     List<Integer> mPermissionIdxList = new ArrayList<>();
     private CameraMgt mCameraMgt;
+    private SurfaceView mPreviewSV;
     private SurfaceDraw mFaceRect;
-    private ImageView mImgView;
+    //private ImageView mImgView;
+    private InfoLayout mInfoLayout;
     private FaceTask mFaceTask;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -55,21 +70,58 @@ public class CameraActivity extends AppCompatActivity {
         Intent intent=getIntent();
         if(intent!=null) {
             int reqtype = intent.getIntExtra("RequestType", -1);
-            if(reqtype == -1)
-                CameraActivityData.RequestType = CameraActivityData.REQ_TYPE_LOGIN; // default
+            if(reqtype == -1) {
+                // CameraActivityData.RequestType = CameraActivityData.REQ_TYPE_LOGIN; // default
+                CameraActivityData.RequestType = CameraActivityData.REQ_TYPE_IDCARDFDV;
+                // CameraActivityData.RequestType = CameraActivityData.REQ_TYPE_REGISTER;
+            }
             else
                 CameraActivityData.RequestType = reqtype;
         }
         else{
             // default
-            CameraActivityData.RequestType = CameraActivityData.REQ_TYPE_LOGIN;
+            // CameraActivityData.RequestType = CameraActivityData.REQ_TYPE_LOGIN;
+             CameraActivityData.RequestType = CameraActivityData.REQ_TYPE_IDCARDFDV;
         }
 
-        mImgView = (ImageView) findViewById(R.id.imageView);
-        mImgView.setVisibility(View.INVISIBLE);
+        // screen size
+        Point point = new Point();
+        getWindowManager().getDefaultDisplay().getRealSize(point); // 全屏分辨率
+        CameraActivityData.CameraActivity_width = point.x;
+        CameraActivityData.CameraActivity_height = point.y;
+
+        //mImgView = (ImageView) findViewById(R.id.imageView);
+        //Bitmap infobg = Bitmap.createBitmap(2, 2,
+        //        Bitmap.Config.ARGB_8888);
+        //infobg.eraseColor(Color.parseColor("#FFFFFF"));//填充颜色
+        //mImgView.setImageBitmap(infobg);
+        //mImgView.setVisibility(View.INVISIBLE);
+
+        mPreviewSV = (SurfaceView) findViewById(R.id.camera_preview);
         mFaceRect = (SurfaceDraw) findViewById(R.id.surface_draw);
         mFaceRect.setVisibility(View.VISIBLE);
-        mCameraMgt = new CameraMgt(this, R.id.camera_preview);
+
+        mCameraMgt = new CameraMgt(this, mPreviewSV, mFaceRect);
+        if(MyApplication.certstream_baos == null){
+            try {
+                MyApplication.certstream_baos = new ByteArrayOutputStream();
+                InputStream certstream = getAssets().open("cert.pem");
+                int size = certstream.available();
+                byte[] buffer = new byte[size];
+                int len;
+                while ((len = certstream.read(buffer)) > -1) {
+                    MyApplication.certstream_baos.write(buffer, 0, len);
+                }
+                MyApplication.certstream_baos.flush();
+            } catch (IOException e){
+                e.printStackTrace();
+            }
+        }
+
+        mInfoLayout = new InfoLayout(this);
+
+        // brightness
+        CameraActivity.startBrightnessWork(this, mInfoLayout);
 
 
         // Android 6.0 运行时权限
@@ -91,7 +143,7 @@ public class CameraActivity extends AppCompatActivity {
         }
 
         if (permissionList.isEmpty()) {//未授予的权限为空，表示都授予了
-            initWork();
+            initWork(false); // 此处不开启预览，CameraMgt surfaceCreated()处开启
         } else {//请求权限方法
             String[] reqpermissions = permissionList.toArray(new String[permissionList.size()]);//将List转为数组
             ActivityCompat.requestPermissions(this, reqpermissions, 1);
@@ -125,17 +177,17 @@ public class CameraActivity extends AppCompatActivity {
 
         }
 
-        initWork();
+        initWork(true);
     }
 
-    private void initWork(){
-        initLocation();
+    private void initWork(boolean bStartCamera){
+        // initLocation();
 
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
                 == PackageManager.PERMISSION_GRANTED){
             mCameraMgt.setPreviewCallback(mPreviewCB);
             mCameraMgt.setTakePictureJpegCallback(mTakePictrueJpegCB);
-            mCameraMgt.openCamera();
+            mCameraMgt.openCamera(bStartCamera);
         }
     }
 
@@ -204,6 +256,7 @@ public class CameraActivity extends AppCompatActivity {
     private void showLocation(Location location){
         String locationStr = " 纬度：" + location.getLatitude() +"   "
                 + "经度：" + location.getLongitude();
+        //location.distanceTo(Location dest);
         Toast.makeText(this, locationStr, Toast.LENGTH_SHORT).show();
     }
 
@@ -254,8 +307,13 @@ public class CameraActivity extends AppCompatActivity {
                 }
             }
 
-            mFaceTask = new FaceTask(CameraActivity.this, data, mCameraMgt.getCurrentCameraId(),camera,
-                    mImgView, mFaceRect, mCameraMgt.getCameraView());
+            mFaceTask = new FaceTask(CameraActivity.this,
+                                        data,
+                                        mCameraMgt.getCurrentCameraId(),
+                                        camera,
+                                        mInfoLayout,
+                                        mFaceRect,
+                                        mCameraMgt.getCameraView());
             mFaceTask.execute((Void)null);
         }
     };
@@ -264,8 +322,9 @@ public class CameraActivity extends AppCompatActivity {
         @Override
         public void onPictureTaken(byte[] data, Camera camera) {
             //Log.e("onPictureTaken","Take Picture success!");
-            //Bitmap bm = CameraMgt.getBitmapFromBytes(data, mCameraMgt.getCurrentCameraId(), 1);
-            //mFaceRect.setFacePic(bm);
+            //Bitmap bm = CameraMgt.getBitmapFromBytes(data, mCameraMgt.getCurrentCameraId(), 4);
+            //mInfoLayout.setCameraImage(bm);
+
 
             Intent intent = new Intent();
             intent.setClass(CameraActivity.this, SubActivity.class);
@@ -277,6 +336,7 @@ public class CameraActivity extends AppCompatActivity {
             //CameraActivity.this.finish();
 
             //camera.startPreview();//重新开始预览
+
         }
     };
 
@@ -321,5 +381,39 @@ public class CameraActivity extends AppCompatActivity {
         super.onBackPressed();
     }
 
+    // ===========================================================
+    // screen brightness
+    public static void startBrightnessWork(final Activity activity, final InfoLayout infoL){
+        if(null == MyApplication.BrightnessHandler){
+            MyApplication.BrightnessHandler = new Handler();
+        }
+        if(null == MyApplication.BrightnessRunnable) {
+            MyApplication.BrightnessRunnable = new Runnable() {
+                @Override
+                public void run() {
+                    WindowManager.LayoutParams params = activity.getWindow().getAttributes();
+                    params.screenBrightness = 0.005f;
+                    activity.getWindow().setAttributes(params);
 
+                    infoL.resetCameraImage();
+                    infoL.resetIdcardPhoto();
+                    infoL.setResultSimilarity("--%");
+                    infoL.resetResultIcon();
+                }
+            };
+        }
+        MyApplication.BrightnessHandler.removeCallbacks(MyApplication.BrightnessRunnable);
+        WindowManager.LayoutParams params = activity.getWindow().getAttributes();
+        params.screenBrightness = 0.5f;
+        activity.getWindow().setAttributes(params);
+        MyApplication.BrightnessHandler.postDelayed(MyApplication.BrightnessRunnable,10*1000);
+    }
+
+    public static void keepBright(Activity activity){
+        MyApplication.BrightnessHandler.removeCallbacks(MyApplication.BrightnessRunnable);
+        WindowManager.LayoutParams params = activity.getWindow().getAttributes();
+        params.screenBrightness = 0.5f;
+        activity.getWindow().setAttributes(params);
+    }
+    // ===========================================================
 }

@@ -103,6 +103,7 @@ public class SurfaceDraw extends SurfaceView implements SurfaceHolder.Callback{
                                 if (mFaceRect.width() > 0 && mFaceRect.height() > 0)
                                     canvas.drawRect(mFaceRect, p);
 
+                                //canvas.drawText(".895648", 100,100,p);
                                 mbDrawRequest = false;
                                 mbDrawFaceRect = false;
                             }

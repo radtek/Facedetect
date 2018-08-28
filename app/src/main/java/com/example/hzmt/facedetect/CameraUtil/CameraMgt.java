@@ -253,7 +253,8 @@ public class CameraMgt {
             // 设置预览窗口大小
             ViewGroup.LayoutParams cameraLP = mSurfaceView.getLayoutParams();
             cameraLP.height = CameraActivityData.CameraActivity_height;
-            cameraLP.width = cameraLP.height * previewSize.width / previewSize.height;
+            //cameraLP.width = cameraLP.height * previewSize.width / previewSize.height; // 保持宽高比
+            cameraLP.width = CameraActivityData.CameraActivity_width; // 全屏
 
             // 设置人脸框绘图窗口大小，与预览窗口等大
             ViewGroup.LayoutParams facerectL = mFaceRect.getLayoutParams();

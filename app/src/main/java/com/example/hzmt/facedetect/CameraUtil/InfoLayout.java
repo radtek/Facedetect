@@ -44,7 +44,7 @@ public class InfoLayout {
         this.mActivity = activity;
         mMainLayout = (LinearLayout) mActivity.findViewById(R.id.info_layout);
         ViewGroup.LayoutParams mainLP = mMainLayout.getLayoutParams();
-        mainLP.width = (int)(CameraActivityData.CameraActivity_width * 0.4);
+        mainLP.width = (int)(CameraActivityData.CameraActivity_width * 0.1);
 
         LinearLayout imagesLayout = (LinearLayout) mActivity.findViewById(R.id.info_images);
         imagesLayout.getLayoutParams().height = CameraActivityData.CameraActivity_height / 4;

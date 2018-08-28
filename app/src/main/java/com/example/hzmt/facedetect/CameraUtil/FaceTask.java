@@ -100,10 +100,6 @@ public class FaceTask extends AsyncTask<Void, Void, FaceDetector.Face>{
                 previewSize.height,
                 null);
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        int offsetX =  mSurface.getWidth() - (CameraActivityData.CameraActivity_width - mInfoLayout.getInfoLayoutWidth());
-        offsetX = offsetX * previewSize.width / mSurface.getWidth();
-
-        offsetX = previewSize.width - ((int)previewSize.width - offsetX + 7)/8*8;
         yuvimage.compressToJpeg(
                 new Rect(0,
                         0,
@@ -112,10 +108,19 @@ public class FaceTask extends AsyncTask<Void, Void, FaceDetector.Face>{
                 80,
                 baos);
         byte[] rawImage =baos.toByteArray();
-        Bitmap fullPreviewBm = CameraMgt.getBitmapFromBytes(rawImage, mCameraIdx, 4);
+        Bitmap fullPreviewBm = CameraMgt.getBitmapFromBytes(rawImage, mCameraIdx, 1);
         int cwidth = CameraActivityData.CameraActivity_width - mInfoLayout.getInfoLayoutWidth();
-        cwidth = cwidth * fullPreviewBm.getHeight() / CameraActivityData.CameraActivity_height;
+        // 保持宽高比时:
+        //cwidth = cwidth * fullPreviewBm.getHeight() / CameraActivityData.CameraActivity_height;
+        // 全屏时:
+        cwidth = cwidth * fullPreviewBm.getWidth() / CameraActivityData.CameraActivity_width;
+
         cwidth = (cwidth+1)/2*2; // 需确保用于人脸检测的图尺寸为偶数
+        if(fullPreviewBm.getWidth() - cwidth < 0) {
+            // 避免负值错误
+            // 保持宽高比且信息面板宽度小没有覆盖到预览区域时会出现
+            cwidth = fullPreviewBm.getWidth();
+        }
         mScreenBm = Bitmap.createBitmap(fullPreviewBm,
                 fullPreviewBm.getWidth() - cwidth,
                 0,
@@ -158,10 +163,12 @@ public class FaceTask extends AsyncTask<Void, Void, FaceDetector.Face>{
 
                 int maxX = CameraActivityData.CameraActivity_width - mInfoLayout.getInfoLayoutWidth();
                 int maxY = mSurface.getHeight();
-                float rate = (mSurface.getHeight() - 0.0f) / mScreenBm.getHeight();
-                pointF.x = pointF.x * rate;
-                pointF.y = pointF.y * rate;
-                eyesDistance = eyesDistance * rate;
+                float rateY = (mSurface.getHeight() - 0.0f) / mScreenBm.getHeight();
+                //float rateX = rateY; // 保持宽高比时
+                float rateX = (mSurface.getWidth() - 0.0f) / mScreenBm.getWidth(); // 全屏时
+                pointF.x = pointF.x * rateX;
+                pointF.y = pointF.y * rateY;
+                eyesDistance = eyesDistance * rateX;
 
                 int l = (int) (pointF.x - eyesDistance*1.1f);
                 if (l < 0) l = 1;
@@ -312,10 +319,10 @@ public class FaceTask extends AsyncTask<Void, Void, FaceDetector.Face>{
                                 // Log.e("SpaceTime:", space.toString());
                             }
                             if(action) {
-                               // AccessControlUtil.OpenDoor(
-                               //         MyApplication.accessControlUrl,
-                               //         MyApplication.accessControlSn
-                               //);
+                                AccessControlUtil.OpenDoor(
+                                        MyApplication.accessControlUrl,
+                                        MyApplication.accessControlSn
+                                );
                                 MyApplication.accessControlCnt = nowTime;
                             }
                         }
